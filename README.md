@@ -1,2 +1,4 @@
 # WOZLLA.PureMVC.js
-PureMVC plugin of WOZLLA.js
+**Developing** PureMVC plugin of WOZLLA.js
+
+
