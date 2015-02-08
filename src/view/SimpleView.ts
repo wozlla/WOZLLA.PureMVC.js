@@ -68,6 +68,7 @@ module WOZLLA.PureMVC {
 
     Component.register(SimpleView, {
         name: 'MVC.SimpleView',
+        disableInEditor: true,
         properties: [{
             name: 'modelKey',
             type: 'string'

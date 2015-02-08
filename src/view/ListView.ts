@@ -58,6 +58,7 @@ module WOZLLA.PureMVC {
 
     WOZLLA.Component.register(ListView, {
         name: 'MVC.ListView',
+        disableInEditor: true,
         properties: [
         Component.extendConfig(AdapterView),
         {

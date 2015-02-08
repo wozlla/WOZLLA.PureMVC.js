@@ -5,7 +5,15 @@ module WOZLLA.PureMVC {
 
     export class ViewBuilder extends WOZLLA.jsonx.JSONXBuilder {
 
-        public static fullBuild(src:any, modelMap:any , onComplete:(view:View) => void) {
+        public static create(outerBuilder?:ViewBuilder) {
+            var builder = new ViewBuilder();
+            if(outerBuilder) {
+                outerBuilder.applyModelStore(builder);
+            }
+            return builder;
+        }
+
+        public static fullBuild(src:any, modelMap:any , onComplete:(root:WOZLLA.GameObject, view:View) => void) {
             var builder = new WOZLLA.PureMVC.ViewBuilder();
             if(typeof src === 'string') {
                 builder.instantiateWithSrc(src);
@@ -22,7 +30,7 @@ module WOZLLA.PureMVC {
             }
             builder.load().init().build((error:any, root:WOZLLA.GameObject) => {
                 var view = <View>root.getComponent(View);
-                onComplete && onComplete(view);
+                onComplete && onComplete(root, view);
             });
         }
 
@@ -30,6 +38,15 @@ module WOZLLA.PureMVC {
         _storeMap:any = {};
 
         _bindList = [];
+
+        applyModelStore(builder:ViewBuilder) {
+            for(var key in this._modelMap) {
+                builder.addModel(key, this._modelMap[key]);
+            }
+            for(var key in this._storeMap) {
+                builder.addStore(key, this._storeMap[key]);
+            }
+        }
 
         addModel(key:string, model:Model) {
             this._modelMap[key] = model;
@@ -90,5 +107,7 @@ module WOZLLA.PureMVC {
             return component;
         }
     }
+
+    WOZLLA.jsonx.JSONXBuilder.Factory = ViewBuilder.create;
 
 }

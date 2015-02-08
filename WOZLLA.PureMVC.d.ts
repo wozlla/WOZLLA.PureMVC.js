@@ -188,10 +188,12 @@ declare module WOZLLA.PureMVC {
 }
 declare module WOZLLA.PureMVC {
     class ViewBuilder extends WOZLLA.jsonx.JSONXBuilder {
-        static fullBuild(src: any, modelMap: any, onComplete: (view: View) => void): void;
+        static create(outerBuilder?: ViewBuilder): ViewBuilder;
+        static fullBuild(src: any, modelMap: any, onComplete: (root: WOZLLA.GameObject, view: View) => void): void;
         _modelMap: any;
         _storeMap: any;
         _bindList: any[];
+        applyModelStore(builder: ViewBuilder): void;
         addModel(key: string, model: Model): void;
         getModel(key: string): Model;
         addStore(key: string, store: Store): void;

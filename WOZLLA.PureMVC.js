@@ -493,12 +493,13 @@ var WOZLLA;
         PureMVC.AdapterView = AdapterView;
         WOZLLA.Component.register(AdapterView, {
             name: 'MVC.AdapterView',
+            abstractComponent: true,
             properties: [{
                 name: 'storeKey',
                 type: 'string'
             }, {
                 name: 'adapter',
-                type: 'MVC.Adapter',
+                type: 'string',
                 convert: function (name) {
                     if (!name) {
                         return null;
@@ -616,6 +617,7 @@ var WOZLLA;
         PureMVC.SimpleView = SimpleView;
         WOZLLA.Component.register(SimpleView, {
             name: 'MVC.SimpleView',
+            disableInEditor: true,
             properties: [{
                 name: 'modelKey',
                 type: 'string'
@@ -784,6 +786,7 @@ var WOZLLA;
         PureMVC.ListView = ListView;
         WOZLLA.Component.register(ListView, {
             name: 'MVC.ListView',
+            disableInEditor: true,
             properties: [
                 WOZLLA.Component.extendConfig(PureMVC.AdapterView),
                 {
@@ -894,6 +897,13 @@ var WOZLLA;
                 this._storeMap = {};
                 this._bindList = [];
             }
+            ViewBuilder.create = function (outerBuilder) {
+                var builder = new ViewBuilder();
+                if (outerBuilder) {
+                    outerBuilder.applyModelStore(builder);
+                }
+                return builder;
+            };
             ViewBuilder.fullBuild = function (src, modelMap, onComplete) {
                 var builder = new WOZLLA.PureMVC.ViewBuilder();
                 if (typeof src === 'string') {
@@ -913,8 +923,16 @@ var WOZLLA;
                 }
                 builder.load().init().build(function (error, root) {
                     var view = root.getComponent(PureMVC.View);
-                    onComplete && onComplete(view);
+                    onComplete && onComplete(root, view);
                 });
+            };
+            ViewBuilder.prototype.applyModelStore = function (builder) {
+                for (var key in this._modelMap) {
+                    builder.addModel(key, this._modelMap[key]);
+                }
+                for (var key in this._storeMap) {
+                    builder.addStore(key, this._storeMap[key]);
+                }
             };
             ViewBuilder.prototype.addModel = function (key, model) {
                 this._modelMap[key] = model;
@@ -975,6 +993,7 @@ var WOZLLA;
             return ViewBuilder;
         })(WOZLLA.jsonx.JSONXBuilder);
         PureMVC.ViewBuilder = ViewBuilder;
+        WOZLLA.jsonx.JSONXBuilder.Factory = ViewBuilder.create;
     })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
 })(WOZLLA || (WOZLLA = {}));
 //# sourceMappingURL=WOZLLA.PureMVC.js.map

@@ -73,12 +73,13 @@ module WOZLLA.PureMVC {
 
     Component.register(AdapterView, {
         name: 'MVC.AdapterView',
+        abstractComponent: true,
         properties: [{
             name: 'storeKey',
             type: 'string'
         }, {
             name: 'adapter',
-            type: 'MVC.Adapter',
+            type: 'string',
             convert: function(name) {
                 if(!name) {
                     return null;
