@@ -1,5 +1,6 @@
 ///<reference path='../../puremvc-typescript-multicore-1.1.d.ts'/>
 ///<reference path='../../typings/tsd.d.ts' />
+///<reference path='ModelBase.ts' />
 module WOZLLA.PureMVC {
 
     var modelIdGen = 0;
@@ -7,7 +8,7 @@ module WOZLLA.PureMVC {
         return ++modelIdGen + '';
     }
 
-    export class Model extends WOZLLA.event.EventDispatcher {
+    export class Model extends ModelBase {
 
         protected data:any = {
             _modelId: generateModelId()

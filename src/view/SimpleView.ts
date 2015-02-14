@@ -7,11 +7,11 @@ module WOZLLA.PureMVC {
         get modelKey():string { return this._modelKey; }
         set modelKey(key:string) { this._modelKey = key; }
 
-        get model():Model {
+        get model():ModelBase {
             return this._model;
         }
 
-        _model:Model;
+        _model:ModelBase;
         _modelKey:string;
         _binder:SimpleBinder;
 
@@ -20,10 +20,11 @@ module WOZLLA.PureMVC {
             super.onDestroy();
         }
 
-        bindModel(model:Model) {
+        bindModel(model:ModelBase) {
             if(this._model) {
                 this.unbindModel();
             }
+            if(!model) return;
             model.addListenerScope('fieldchanged', this.onModelFieldChange, this);
             this._model = model;
             this.onModelBind(model);
@@ -42,13 +43,13 @@ module WOZLLA.PureMVC {
             this._binder.onModelFieldChange(e);
         }
 
-        onModelBind(model:Model) {
+        onModelBind(model:ModelBase) {
             if(this._binder) {
                 this._binder.onModelBind(model);
             }
         }
 
-        onModelUnbind(model:Model) {
+        onModelUnbind(model:ModelBase) {
             if(this._binder) {
                 this._binder.onModelUnbind(model);
             }
@@ -62,6 +63,13 @@ module WOZLLA.PureMVC {
             if(this._model && binder) {
                 this._binder.onModelBind(this._model);
             }
+        }
+
+        getModelFieldValue(field:string) {
+            if(this._binder) {
+                return this._binder.getModelFieldValue(field);
+            }
+            return this._model.get(field);
         }
 
     }

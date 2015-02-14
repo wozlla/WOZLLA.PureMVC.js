@@ -13,8 +13,61 @@ module WOZLLA.PureMVC {
             this._itemViewSrc = src;
         }
 
+        get selectionModel():ListSelectionModel {
+            return this._selectionModel;
+        }
+
         _itemViewSrc:string;
         _itemViews:SimpleView[]= [];
+
+        _selectionModel:ListSelectionModel = new ListSelectionModel();
+
+        onCreate() {
+            super.onCreate();
+            this.gameObject.addListenerScope('tap', this.onChildTap, this);
+            this._selectionModel.addListenerScope(ListSelectionModel.EVENT_CHANGED, this.onSelectionChanged, this);
+        }
+
+        onDestroy() {
+            this.gameObject.removeListenerScope('tap', this.onChildTap, this);
+            this._selectionModel.removeListenerScope(ListSelectionModel.EVENT_CHANGED, this.onSelectionChanged, this);
+        }
+
+        protected getTapChildView(e) {
+            return e.target.getComponent(SimpleView);
+        }
+
+        protected onChildTap(e) {
+            var idx;
+            var view:any = this.getTapChildView(e);
+            if(view && view.isSelectable) {
+                idx = this.indexOf(view);
+                if(idx !== -1) {
+                    this.selectionModel.addSelectionIndex(idx);
+                }
+            }
+        }
+
+        protected onSelectionChanged(e:SelectionChangeEvent) {
+            var oldSelectionIndices = e.oldSelectionIndices;
+            var selectionIndices = e.selectionIndices;
+
+            var deselectArr = oldSelectionIndices.filter((val) => selectionIndices.indexOf(val) === -1);
+            var selectArr = selectionIndices.filter((val) => oldSelectionIndices.indexOf(val) === -1);
+
+            deselectArr.forEach((idx) => {
+                var view:any = this.getItemViewAt(idx);
+                if(view.isSelectable) {
+                    view.setSelected(false);
+                }
+            });
+            selectArr.forEach((idx) => {
+                var view:any = this.getItemViewAt(idx);
+                if(view.isSelectable) {
+                    view.setSelected(true);
+                }
+            });
+        }
 
         addItemViewAt(itemView:SimpleView, idx:number) {
             this._itemViews.splice(idx, 0, itemView);

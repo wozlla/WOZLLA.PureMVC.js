@@ -29,6 +29,18 @@ module WOZLLA.PureMVC {
             }
         }
 
+        public getMediator(id):Mediator {
+            return <Mediator>this.facade().retrieveMediator(id);
+        }
+
+        public getService(id):Service {
+            return <Service>this.facade().retrieveProxy(id);
+        }
+
+        public getProxy(id):Proxy {
+            return<Proxy>this.facade().retrieveProxy(id);
+        }
+
     }
 
 }

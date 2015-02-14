@@ -20,9 +20,8 @@ var WOZLLA;
                 }
                 return ApplicationFacade.instanceMap[key];
             };
-            ApplicationFacade.prototype.sendNotification = function (name, body, type) {
-                // TODO
-                _super.prototype.sendNotification.call(this, name, body, type);
+            ApplicationFacade.prototype.registerService = function (service) {
+                this.registerProxy(service);
             };
             return ApplicationFacade;
         })(puremvc.Facade);
@@ -41,6 +40,15 @@ var WOZLLA;
             }
             AsyncCommand.prototype.execute = function (notification, onComplete) {
                 onComplete && onComplete();
+            };
+            AsyncCommand.prototype.getMediator = function (id) {
+                return this.facade().retrieveMediator(id);
+            };
+            AsyncCommand.prototype.getService = function (id) {
+                return this.facade().retrieveProxy(id);
+            };
+            AsyncCommand.prototype.getProxy = function (id) {
+                return this.facade().retrieveProxy(id);
             };
             return AsyncCommand;
         })(puremvc.SimpleCommand);
@@ -82,6 +90,15 @@ var WOZLLA;
                     onComplete();
                 }
             };
+            AsyncMacroCommand.prototype.getMediator = function (id) {
+                return this.facade().retrieveMediator(id);
+            };
+            AsyncMacroCommand.prototype.getService = function (id) {
+                return this.facade().retrieveProxy(id);
+            };
+            AsyncMacroCommand.prototype.getProxy = function (id) {
+                return this.facade().retrieveProxy(id);
+            };
             return AsyncMacroCommand;
         })(puremvc.MacroCommand);
         PureMVC.AsyncMacroCommand = AsyncMacroCommand;
@@ -99,32 +116,66 @@ var WOZLLA;
             Mediator.prototype.getStage = function () {
                 return WOZLLA.Director.getInstance().stage;
             };
-            Mediator.prototype.getView = function () {
-                return this.getViewComponent();
+            Mediator.prototype.getService = function (id) {
+                return this.facade().retrieveProxy(id);
             };
-            Mediator.prototype.show = function (callback) {
-                var view = this.getView();
-                this.getStage().addChild(view.gameObject);
-                callback && callback();
+            Mediator.prototype.getProxy = function (id) {
+                return this.facade().retrieveProxy(id);
             };
-            Mediator.prototype.hide = function (callback) {
-                var view = this.getView();
-                view.gameObject.removeMe();
-                callback && callback();
+            Mediator.prototype.control = function (scope, params) {
+                if (this.scope || this.controlParams) {
+                    return;
+                }
+                this.controlParams = params;
+                scope.addListenerScope('*', this.onControl, this);
             };
-            Mediator.prototype.close = function (callback) {
-                var view = this.getView();
-                view.gameObject.destroy();
-                view.gameObject.removeMe();
-                callback && callback();
+            Mediator.prototype.uncontrol = function (scope) {
+                scope.removeListenerScope('*', this.onControl, this);
+            };
+            Mediator.prototype.onControl = function (e) {
+                var targetName = e.target.name;
+                var targetIdExpr = '#' + e.target.id;
+                var eventType = e.type;
+                var listenerMap;
+                var listener;
+                for (var expr in this.controlParams) {
+                    if (targetName === expr || targetIdExpr === expr) {
+                        listenerMap = this.controlParams[expr];
+                        if (listenerMap) {
+                            listener = listenerMap[eventType];
+                            if (listener) {
+                                listener.call(this, e, this.scope);
+                            }
+                        }
+                    }
+                }
             };
             return Mediator;
         })(puremvc.Mediator);
         PureMVC.Mediator = Mediator;
     })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
 })(WOZLLA || (WOZLLA = {}));
+var WOZLLA;
+(function (WOZLLA) {
+    var PureMVC;
+    (function (PureMVC) {
+        var ModelBase = (function (_super) {
+            __extends(ModelBase, _super);
+            function ModelBase() {
+                _super.apply(this, arguments);
+            }
+            ModelBase.prototype.get = function (field) {
+            };
+            ModelBase.prototype.set = function (field, value) {
+            };
+            return ModelBase;
+        })(WOZLLA.event.EventDispatcher);
+        PureMVC.ModelBase = ModelBase;
+    })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
+})(WOZLLA || (WOZLLA = {}));
 ///<reference path='../../puremvc-typescript-multicore-1.1.d.ts'/>
 ///<reference path='../../typings/tsd.d.ts' />
+///<reference path='ModelBase.ts' />
 var WOZLLA;
 (function (WOZLLA) {
     var PureMVC;
@@ -178,7 +229,7 @@ var WOZLLA;
                 }
             };
             return Model;
-        })(WOZLLA.event.EventDispatcher);
+        })(PureMVC.ModelBase);
         PureMVC.Model = Model;
         var FieldChangeEventData = (function () {
             function FieldChangeEventData(field, value, oldValue) {
@@ -351,6 +402,12 @@ var WOZLLA;
             function Service() {
                 _super.apply(this, arguments);
             }
+            Service.prototype.getService = function (id) {
+                return this.facade().retrieveProxy(id);
+            };
+            Service.prototype.getProxy = function (id) {
+                return this.facade().retrieveProxy(id);
+            };
             return Service;
         })(puremvc.Proxy);
         PureMVC.Service = Service;
@@ -577,6 +634,8 @@ var WOZLLA;
                 if (this._model) {
                     this.unbindModel();
                 }
+                if (!model)
+                    return;
                 model.addListenerScope('fieldchanged', this.onModelFieldChange, this);
                 this._model = model;
                 this.onModelBind(model);
@@ -611,6 +670,12 @@ var WOZLLA;
                 if (this._model && binder) {
                     this._binder.onModelBind(this._model);
                 }
+            };
+            SimpleView.prototype.getModelFieldValue = function (field) {
+                if (this._binder) {
+                    return this._binder.getModelFieldValue(field);
+                }
+                return this._model.get(field);
             };
             return SimpleView;
         })(PureMVC.View);
@@ -689,7 +754,7 @@ var WOZLLA;
                 }
             };
             ListAdapter.prototype.onStoreUnbind = function (store) {
-                var arrayStore = this.arrayStore;
+                var arrayStore = store;
                 arrayStore.removeListenerScope('add', this.onStoreAdd, this);
                 arrayStore.removeListenerScope('remove', this.onStoreRemove, this);
                 arrayStore.removeListenerScope('clear', this.onStoreClear, this);
@@ -738,6 +803,7 @@ var WOZLLA;
             function ListView() {
                 _super.apply(this, arguments);
                 this._itemViews = [];
+                this._selectionModel = new PureMVC.ListSelectionModel();
             }
             Object.defineProperty(ListView.prototype, "itemViewSrc", {
                 get: function () {
@@ -749,6 +815,54 @@ var WOZLLA;
                 enumerable: true,
                 configurable: true
             });
+            Object.defineProperty(ListView.prototype, "selectionModel", {
+                get: function () {
+                    return this._selectionModel;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            ListView.prototype.onCreate = function () {
+                _super.prototype.onCreate.call(this);
+                this.gameObject.addListenerScope('tap', this.onChildTap, this);
+                this._selectionModel.addListenerScope(PureMVC.ListSelectionModel.EVENT_CHANGED, this.onSelectionChanged, this);
+            };
+            ListView.prototype.onDestroy = function () {
+                this.gameObject.removeListenerScope('tap', this.onChildTap, this);
+                this._selectionModel.removeListenerScope(PureMVC.ListSelectionModel.EVENT_CHANGED, this.onSelectionChanged, this);
+            };
+            ListView.prototype.getTapChildView = function (e) {
+                return e.target.getComponent(PureMVC.SimpleView);
+            };
+            ListView.prototype.onChildTap = function (e) {
+                var idx;
+                var view = this.getTapChildView(e);
+                if (view && view.isSelectable) {
+                    idx = this.indexOf(view);
+                    if (idx !== -1) {
+                        this.selectionModel.addSelectionIndex(idx);
+                    }
+                }
+            };
+            ListView.prototype.onSelectionChanged = function (e) {
+                var _this = this;
+                var oldSelectionIndices = e.oldSelectionIndices;
+                var selectionIndices = e.selectionIndices;
+                var deselectArr = oldSelectionIndices.filter(function (val) { return selectionIndices.indexOf(val) === -1; });
+                var selectArr = selectionIndices.filter(function (val) { return oldSelectionIndices.indexOf(val) === -1; });
+                deselectArr.forEach(function (idx) {
+                    var view = _this.getItemViewAt(idx);
+                    if (view.isSelectable) {
+                        view.setSelected(false);
+                    }
+                });
+                selectArr.forEach(function (idx) {
+                    var view = _this.getItemViewAt(idx);
+                    if (view.isSelectable) {
+                        view.setSelected(true);
+                    }
+                });
+            };
             ListView.prototype.addItemViewAt = function (itemView, idx) {
                 this._itemViews.splice(idx, 0, itemView);
                 itemView.gameObject.z = idx;
@@ -797,16 +911,171 @@ var WOZLLA;
         });
     })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
 })(WOZLLA || (WOZLLA = {}));
+///<reference path='../model/ModelBase.ts'/>
+var WOZLLA;
+(function (WOZLLA) {
+    var PureMVC;
+    (function (PureMVC) {
+        var ModelWrapper = (function (_super) {
+            __extends(ModelWrapper, _super);
+            function ModelWrapper(modelMap) {
+                _super.call(this);
+                this._modelMap = modelMap || {};
+            }
+            ModelWrapper.prototype.get = function (field) {
+                var fieldSplit = field.split('.');
+                var model = this._modelMap[fieldSplit[0]];
+                return model.get(fieldSplit[1]);
+            };
+            ModelWrapper.prototype.set = function (field, value, silent) {
+                if (silent === void 0) { silent = false; }
+                var fieldSplit = field.split('.');
+                var model = this._modelMap[fieldSplit[0]];
+                model.set(fieldSplit[1], value, silent);
+            };
+            return ModelWrapper;
+        })(PureMVC.ModelBase);
+        PureMVC.ModelWrapper = ModelWrapper;
+    })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
+})(WOZLLA || (WOZLLA = {}));
+var WOZLLA;
+(function (WOZLLA) {
+    var PureMVC;
+    (function (PureMVC) {
+        var ListSelectionModel = (function (_super) {
+            __extends(ListSelectionModel, _super);
+            function ListSelectionModel() {
+                _super.apply(this, arguments);
+                this._selectionIndices = [];
+                this._selectionMode = ListSelectionModel.SINGLE_SELECTION;
+            }
+            Object.defineProperty(ListSelectionModel.prototype, "selectionIndex", {
+                get: function () {
+                    if (this._selectionIndices.length === 0) {
+                        return -1;
+                    }
+                    return this._selectionIndices[0];
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ListSelectionModel.prototype, "selectionIndices", {
+                get: function () {
+                    return this._selectionIndices.slice(0);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            ListSelectionModel.prototype.addSelectionIndex = function (index) {
+                if (this._selectionIndices.indexOf(index) !== -1) {
+                    return;
+                }
+                if (this._selectionMode === ListSelectionModel.SINGLE_SELECTION) {
+                    this.setSelectionIndex(index);
+                    return;
+                }
+                var oldIndices = this._selectionIndices.slice(0);
+                this._selectionIndices.push(index);
+                this.dispatchEvent(new SelectionChangeEvent(this._selectionIndices.slice(0), oldIndices));
+            };
+            ListSelectionModel.prototype.setSelectionIndex = function (index) {
+                if (this._selectionIndices.indexOf(index) !== -1) {
+                    return;
+                }
+                var oldIndices = this._selectionIndices.slice(0);
+                this._selectionIndices.length = 0;
+                this._selectionIndices.push(index);
+                this.dispatchEvent(new SelectionChangeEvent(this._selectionIndices.slice(0), oldIndices));
+            };
+            ListSelectionModel.prototype.setSelectionIndices = function (indices) {
+                if (!indices || indices.length === 0) {
+                    var oldIndices = this._selectionIndices.slice(0);
+                    this._selectionIndices.length = 0;
+                    this.dispatchEvent(new SelectionChangeEvent(this._selectionIndices.slice(0), oldIndices));
+                }
+                else {
+                    if (this._selectionMode === ListSelectionModel.SINGLE_SELECTION) {
+                        this.setSelectionIndex(indices[0]);
+                    }
+                    else {
+                        var oldIndices = this._selectionIndices.slice(0);
+                        this._selectionIndices = indices;
+                        this.dispatchEvent(new SelectionChangeEvent(this._selectionIndices.slice(0), oldIndices));
+                    }
+                }
+            };
+            ListSelectionModel.prototype.clearSelection = function () {
+                var oldIndices = this._selectionIndices.slice(0);
+                this._selectionIndices.length = 0;
+                this.dispatchEvent(new SelectionChangeEvent(this._selectionIndices.slice(0), oldIndices));
+            };
+            ListSelectionModel.prototype.setSelectionMode = function (mode) {
+                this._selectionMode = mode;
+            };
+            ListSelectionModel.SINGLE_SELECTION = 1;
+            ListSelectionModel.MULTIPLE_SELECTION = 2;
+            ListSelectionModel.EVENT_CHANGED = 'selectionChanged';
+            return ListSelectionModel;
+        })(WOZLLA.event.EventDispatcher);
+        PureMVC.ListSelectionModel = ListSelectionModel;
+        var SelectionChangeEvent = (function (_super) {
+            __extends(SelectionChangeEvent, _super);
+            function SelectionChangeEvent(selectionIndices, oldSelectionIndices) {
+                _super.call(this, ListSelectionModel.EVENT_CHANGED, false);
+                this._selectionIndices = [];
+                this._oldSelectionIndices = [];
+                this._selectionIndices = selectionIndices;
+                this._oldSelectionIndices = oldSelectionIndices;
+            }
+            Object.defineProperty(SelectionChangeEvent.prototype, "selectionIndex", {
+                get: function () {
+                    if (this._selectionIndices.length === 0) {
+                        return -1;
+                    }
+                    return this._selectionIndices[0];
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SelectionChangeEvent.prototype, "selectionIndices", {
+                get: function () {
+                    return this._selectionIndices.slice(0);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SelectionChangeEvent.prototype, "oldSelectionIndex", {
+                get: function () {
+                    if (this._oldSelectionIndices.length === 0) {
+                        return -1;
+                    }
+                    return this._oldSelectionIndices[0];
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SelectionChangeEvent.prototype, "oldSelectionIndices", {
+                get: function () {
+                    return this._oldSelectionIndices.slice(0);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return SelectionChangeEvent;
+        })(WOZLLA.event.Event);
+        PureMVC.SelectionChangeEvent = SelectionChangeEvent;
+    })(PureMVC = WOZLLA.PureMVC || (WOZLLA.PureMVC = {}));
+})(WOZLLA || (WOZLLA = {}));
 ///<reference path='SimpleView.ts'/>
 var WOZLLA;
 (function (WOZLLA) {
     var PureMVC;
     (function (PureMVC) {
         var Assert = WOZLLA.Assert;
-        var helpRecord = new WOZLLA.QueryRecord();
         var SimpleBinder = (function () {
             function SimpleBinder(simpleView, config) {
                 this._queryCache = {};
+                this._helpRecord = new WOZLLA.QueryRecord();
                 this._view = simpleView;
                 this._config = config;
                 for (var attrName in config) {
@@ -819,22 +1088,31 @@ var WOZLLA;
                     }
                 }
             }
-            SimpleBinder.prototype.syncAttr = function (name) {
-                var target;
-                var targetAttrName;
+            SimpleBinder.prototype.getModelFieldValue = function (field) {
                 var model = this._view.model;
-                var attrConfig = this._config[name];
+                var attrConfig = this._config[field];
                 // get model value
-                var getter = attrConfig.model && attrConfig.model.getter;
+                var getter = attrConfig && attrConfig.model && attrConfig.model.getter;
                 var value;
                 if (model) {
                     if (getter) {
-                        value = getter(model);
+                        value = getter(model, field);
                     }
                     else {
-                        value = model.get(name);
+                        value = model.get(field);
                     }
                 }
+                return value;
+            };
+            SimpleBinder.prototype.syncAttr = function (name) {
+                var _this = this;
+                var target;
+                var targetAttrName;
+                var attrConfig = this._config[name];
+                if (!attrConfig) {
+                    return;
+                }
+                var value = this.getModelFieldValue(name);
                 // query bind target
                 var cacheData;
                 var cache = attrConfig.cache !== false;
@@ -846,7 +1124,7 @@ var WOZLLA;
                 }
                 if (!target) {
                     var gameObj = this._view.gameObject;
-                    var queryRecord = helpRecord;
+                    var queryRecord = this._helpRecord;
                     queryRecord.target = null;
                     gameObj.query(bind, queryRecord);
                     Assert.isNotUndefined(queryRecord.target, 'Can\'t found "' + bind + '" for binding.');
@@ -860,8 +1138,25 @@ var WOZLLA;
                     }
                 }
                 // apply model value to view
-                target[targetAttrName] = value;
+                var viewSetter = attrConfig.view && attrConfig.view.setter;
+                if (viewSetter) {
+                    viewSetter(target, targetAttrName, value);
+                }
+                else {
+                    target[targetAttrName] = value;
+                }
                 target.loadAssets();
+                var sync = attrConfig.sync;
+                if (sync) {
+                    if (typeof sync === 'string') {
+                        this.syncAttr(sync);
+                    }
+                    else {
+                        sync.forEach(function (attr) {
+                            _this.syncAttr(attr);
+                        });
+                    }
+                }
             };
             SimpleBinder.prototype.onModelFieldChange = function (e) {
                 this.syncAttr(e.data.field);
@@ -914,10 +1209,10 @@ var WOZLLA;
                 }
                 for (var key in modelMap) {
                     var modelOrStore = modelMap[key];
-                    if (modelOrStore instanceof PureMVC.Model) {
+                    if (modelOrStore instanceof PureMVC.ModelBase) {
                         builder.addModel(key, modelOrStore);
                     }
-                    else {
+                    else if (modelOrStore instanceof PureMVC.Store) {
                         builder.addStore(key, modelOrStore);
                     }
                 }

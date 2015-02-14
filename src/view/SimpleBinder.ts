@@ -2,13 +2,13 @@
 module WOZLLA.PureMVC {
 
     var Assert = WOZLLA.Assert;
-    var helpRecord:WOZLLA.QueryRecord = new WOZLLA.QueryRecord();
 
     export class SimpleBinder {
 
         _view:SimpleView;
         _config:any;
         _queryCache:any = {};
+        _helpRecord:WOZLLA.QueryRecord = new WOZLLA.QueryRecord();
 
         constructor(simpleView:SimpleView, config:any) {
             this._view = simpleView;
@@ -24,22 +24,33 @@ module WOZLLA.PureMVC {
             }
         }
 
-        syncAttr(name) {
-            var target;
-            var targetAttrName;
+        getModelFieldValue(field:string) {
             var model = this._view.model;
-            var attrConfig = this._config[name];
+            var attrConfig = this._config[field];
 
             // get model value
-            var getter = attrConfig.model && attrConfig.model.getter;
+            var getter = attrConfig && attrConfig.model && attrConfig.model.getter;
             var value;
             if(model) {
                 if(getter) {
-                    value = getter(model);
+                    value = getter(model, field);
                 } else {
-                    value = model.get(name);
+                    value = model.get(field);
                 }
             }
+
+            return value;
+        }
+
+        syncAttr(name) {
+            var target;
+            var targetAttrName;
+            var attrConfig = this._config[name];
+            if(!attrConfig) {
+                return;
+            }
+
+            var value = this.getModelFieldValue(name);
 
             // query bind target
             var cacheData;
@@ -52,7 +63,7 @@ module WOZLLA.PureMVC {
             }
             if(!target) {
                 var gameObj = this._view.gameObject;
-                var queryRecord = helpRecord;
+                var queryRecord = this._helpRecord;
                 queryRecord.target = null;
                 gameObj.query(bind, queryRecord);
                 Assert.isNotUndefined(queryRecord.target, 'Can\'t found "' + bind + '" for binding.');
@@ -66,19 +77,36 @@ module WOZLLA.PureMVC {
                 }
             }
             // apply model value to view
-            target[targetAttrName] = value;
+            var viewSetter = attrConfig.view && attrConfig.view.setter;
+            if(viewSetter) {
+                viewSetter(target, targetAttrName, value);
+            } else {
+                target[targetAttrName] = value;
+            }
             target.loadAssets();
+
+            var sync:any = attrConfig.sync;
+            if(sync) {
+                if (typeof sync === 'string') {
+                    this.syncAttr(sync);
+                } else {
+                    sync.forEach((attr) => {
+                        this.syncAttr(attr)
+                    });
+                }
+            }
+
         }
 
         onModelFieldChange(e) {
             this.syncAttr(e.data.field);
         }
 
-        onModelBind(model:Model) {
+        onModelBind(model:ModelBase) {
             this.syncAll();
         }
 
-        onModelUnbind(model:Model) {
+        onModelUnbind(model:ModelBase) {
             this.syncAll();
         }
 

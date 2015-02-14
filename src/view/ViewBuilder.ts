@@ -22,9 +22,9 @@ module WOZLLA.PureMVC {
             }
             for(var key in modelMap) {
                 var modelOrStore = modelMap[key];
-                if(modelOrStore instanceof Model) {
+                if(modelOrStore instanceof ModelBase) {
                     builder.addModel(key, modelOrStore);
-                } else {
+                } else if(modelOrStore instanceof Store) {
                     builder.addStore(key, modelOrStore);
                 }
             }

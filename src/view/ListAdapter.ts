@@ -56,7 +56,7 @@ module WOZLLA.PureMVC {
         }
 
         onStoreUnbind(store:Store) {
-            var arrayStore = this.arrayStore;
+            var arrayStore = store;
             arrayStore.removeListenerScope('add', this.onStoreAdd, this);
             arrayStore.removeListenerScope('remove', this.onStoreRemove, this);
             arrayStore.removeListenerScope('clear', this.onStoreClear, this);

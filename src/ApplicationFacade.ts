@@ -10,9 +10,8 @@ module WOZLLA.PureMVC {
             return ApplicationFacade.instanceMap[key];
         }
 
-        public sendNotification(name: string, body?: any, type?: string):void {
-            // TODO
-            super.sendNotification(name, body, type);
+        public registerService(service:WOZLLA.PureMVC.Service):void {
+            this.registerProxy(service);
         }
 
     }
